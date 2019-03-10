@@ -7,6 +7,9 @@
 #define XSM_SIMULATOR_DEFTIMER 20
 #define XSM_SIMULATOR_DEFDISK 20
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+
 int simulator_run();
 int simulator_parse_args(int argc, char **argv);
 
