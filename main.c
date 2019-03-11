@@ -1,5 +1,10 @@
+/*
+The Main function.
+*/
+
 #include "simulator.h"
 
+/* main function */
 int main(int argc, char **argv)
 {
     if (!simulator_parse_args(argc, argv))
