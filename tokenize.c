@@ -8,14 +8,14 @@ static YYSTYPE _curr_token;
 static int _la_exists;
 static int _curr_token_type;
 
-/* Initialises the tokens. */
+/* Initialises the tokens */
 int tokenize_init()
 {
     _la_exists = FALSE;
     return XSM_SUCCESS;
 }
 
-/* Returns next token. */
+/* Returns next token */
 int tokenize_next_token(YYSTYPE *token_info)
 {
     int token_type;
@@ -33,7 +33,7 @@ int tokenize_next_token(YYSTYPE *token_info)
         return token_type;
     }
 }
-/* Peeks the next token. */
+/* Peeks the next token */
 int tokenize_peek(YYSTYPE *token_info)
 {
     if (_la_exists)
@@ -51,26 +51,26 @@ int tokenize_peek(YYSTYPE *token_info)
     }
 }
 
-/* Skips the next token. */
+/* Skips the next token */
 int tokenize_skip_token()
 {
     YYSTYPE token_info;
     return tokenize_next_token(&token_info);
 }
 
-/* Closes the tokens. */
+/* Closes the tokens */
 int tokenize_close()
 {
     return XSM_SUCCESS;
 }
 
-/* Resets the tokens. */
+/* Resets the tokens */
 void tokenize_reset()
 {
     _la_exists = FALSE;
 }
 
-/* Clears the token stream. */
+/* Clears the token stream */
 void tokenize_clear_stream()
 {
     lexer_buffer_reset();

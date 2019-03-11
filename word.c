@@ -9,7 +9,7 @@ Utility functions. An interface between UNIX and XSM data types.
 #include <memory.h>
 #include <stdio.h>
 
-/* Determine the type of data in the word. */
+/* Determine the type of data in the word */
 int word_get_unix_type(xsm_word *word)
 {
     char *data = word->val;
@@ -25,20 +25,20 @@ int word_get_unix_type(xsm_word *word)
     return XSM_TYPE_INTEGER;
 }
 
-/* Retrieve the integer value in the given word. */
+/* Retrieve the integer value in the given word */
 int word_get_integer(xsm_word *word)
 {
     int n;
     return atoi(word->val);
 }
 
-/* Retrieve the string value in the given word. */
+/* Retrieve the string value in the given word */
 char *word_get_string(xsm_word *word)
 {
     return word->val;
 }
 
-/* Store the integer value in the given word. */
+/* Store the integer value in the given word */
 int word_store_integer(xsm_word *word, int integer)
 {
     char *data = word->val;
@@ -46,7 +46,7 @@ int word_store_integer(xsm_word *word, int integer)
     return XSM_SUCCESS;
 }
 
-/* Store the string value in the given word. */
+/* Store the string value in the given word */
 int word_store_string(xsm_word *word, const char *str)
 {
     char *data = word->val;
@@ -54,13 +54,13 @@ int word_store_string(xsm_word *word, const char *str)
     return XSM_SUCCESS;
 }
 
-/* Copy the value in the src word to dest word. */
+/* Copy the value in the src word to dest word */
 void word_copy(xsm_word *dest, xsm_word *src)
 {
     memcpy(dest, src, sizeof(xsm_word));
 }
 
-/* Encrypt the value in the given word. */
+/* Encrypt the value in the given word */
 void word_encrypt(xsm_word *word)
 {
     int i, result = 0;
