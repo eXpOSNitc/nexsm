@@ -47,6 +47,8 @@
 #define REG_KERN_LOW 27
 #define REG_KERN_HIGH 32
 
+#define REG_COUNT 20
+
 typedef xsm_word xsm_reg;
 
 int registers_init();
