@@ -1,3 +1,7 @@
+/*
+An interface for handling exceptions.
+*/
+
 #include "exception.h"
 
 #include <stdio.h>

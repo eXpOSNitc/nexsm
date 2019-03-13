@@ -1,3 +1,7 @@
+/*
+The XFS disk.
+*/
+
 #include "disk.h"
 
 #include <stdlib.h>
