@@ -143,6 +143,40 @@ int machine_instr_req_privilege(int opcode)
     return PRIVILEGE_USER;
 }
 
+/* An interface between lexer and machine */
+int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max)
+{
+
+    int ip_val, i, j, bytes_to_read;
+    xsm_word *ip_reg, *instr_mem;
+
+    bytes_to_read = XSM_INSTRUCTION_SIZE * XSM_WORD_SIZE;
+
+    ip_reg = machine_get_ipreg();
+    ip_val = word_get_integer(ip_reg);
+    ip_val = machine_translate_address(ip_val, FALSE, INSTR_FETCH);
+    instr_mem = machine_memory_get_word(ip_val);
+
+    memcpy(buffer, instr_mem->val, bytes_to_read);
+
+    if (strlen(buffer) == 0)
+    {
+        word_store_integer(machine_get_ipreg(), ip_val + 2);
+        machine_register_exception("The simulator has encountered a NULL instruction", EXP_ILLINSTR);
+    }
+
+    /* Trim */
+    for (i = 0; i < bytes_to_read; ++i)
+        if (buffer[i] == '\0')
+            for (j = i; j < bytes_to_read / 2; j++)
+                buffer[j] = ' ';
+
+    buffer[bytes_to_read - 1] = '\0';
+    *read_bytes = bytes_to_read;
+
+    return TRUE;
+}
+
 /* Start the XSM machine */
 int machine_run()
 {

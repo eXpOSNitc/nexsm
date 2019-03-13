@@ -1,4 +1,5 @@
 %{
+   
    #include <stdlib.h>
    #include "machine.h"
    #include "lexer.h"
@@ -12,10 +13,11 @@
       YY_FLUSH_BUFFER;
    }
 
-   #define YY_INPUT(buffer, read_bytes,max)\
+   #define YY_INPUT(buffer,read_bytes,max)\
    {\
-      machine_serve_instruction(buffer, &read_bytes, max);\
+      machine_serve_instruction(buffer,&read_bytes,max);\
    }\
+
 %}
 
 %%

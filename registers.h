@@ -1,8 +1,9 @@
 #ifndef XSM_REGISTERS_H
 
-#define XSM_REGISETRS_H
+#define XSM_REGISTERS_H
 
 #include "types.h"
+#include "word.h"
 
 #define R0 0
 #define R1 1
