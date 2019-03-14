@@ -45,7 +45,7 @@
    return TOKEN_DREF_R;
 }
 
-SP|BP|IP|PTBR|PTLR|EIP|EC|EPN|EMA {
+SP|BP|IP|PTBR|PTLR|EIP|EC|EPN|EMA|CORE {
    yylval.str = yytext;
    return TOKEN_REGISTER;
 }

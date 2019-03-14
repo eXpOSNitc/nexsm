@@ -59,7 +59,7 @@ const char *instructions[] = {
 /* Initialise the XSM machine */
 int machine_init(xsm_options *options)
 {
-    xsm_word *ipreg;
+    xsm_word *ipreg, *core_flag;
 
     _theoptions = *options;
 
@@ -81,7 +81,17 @@ int machine_init(xsm_options *options)
     ipreg = machine_get_ipreg(PRIMARY_CORE);
     word_store_integer(ipreg, 0);
 
-    machine_set_mode(PRIVILEGE_KERNEL);
+    /* Set up CORE flag */
+    core_flag = registers_get_register("CORE", PRIMARY_CORE);
+    word_store_integer(core_flag, PRIMARY_CORE);
+    core_flag = registers_get_register("CORE", SECONDARY_CORE);
+    word_store_integer(core_flag, SECONDARY_CORE);
+
+    /* Set up the primary core */
+    machine_set_core(PRIMARY_CORE);
+
+    /* Set the mode */
+    machine_set_mode(PRIVILEGE_KERNEL, PRIMARY_CORE);
 
     /* The disk and console is idle.*/
     _thecpu.console_state = XSM_CONSOLE_IDLE;
@@ -126,7 +136,7 @@ xsm_word *machine_get_register(const char *name, int core)
     int mode;
     xsm_word *reg;
 
-    mode = machine_get_mode();
+    mode = machine_get_mode(core);
     reg = registers_get_register(name, core);
 
     if (!reg)
@@ -138,6 +148,9 @@ xsm_word *machine_get_register(const char *name, int core)
 
     if (!strcasecmp(name, "IP"))
         machine_register_exception("IP register can not be directly manipulated", EXP_ILLINSTR);
+
+    if (!strcasecmp(name, "CORE"))
+        machine_register_exception("CORE flag can not be manipulated", EXP_ILLINSTR);
 
     return reg;
 }
@@ -155,12 +168,13 @@ int machine_instr_req_privilege(int opcode)
 int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max)
 {
 
-    int ip_val, i, j, bytes_to_read;
+    int ip_val, i, j, bytes_to_read, core;
     xsm_word *ip_reg, *instr_mem;
 
     bytes_to_read = XSM_INSTRUCTION_SIZE * XSM_WORD_SIZE;
+    core = machine_get_core();
 
-    ip_reg = machine_get_ipreg();
+    ip_reg = machine_get_ipreg(core);
     ip_val = word_get_integer(ip_reg);
     ip_val = machine_translate_address(ip_val, FALSE, INSTR_FETCH);
     instr_mem = machine_memory_get_word(ip_val);
@@ -188,7 +202,7 @@ int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max)
 /* Start the XSM machine */
 int machine_run()
 {
-    int token, opcode, ipval, exp_occured;
+    int token, opcode, ipval, exp_occured, core;
     YYSTYPE token_info;
     xsm_word *ipreg;
 
@@ -232,9 +246,18 @@ int machine_run()
         if (machine_execute_instruction(opcode) == XSM_HALT)
             break;
 
+        core = machine_get_core();
+
         /* Post-execute */
-        if (machine_get_mode() == PRIVILEGE_USER)
+        if (machine_get_mode(core) == PRIVILEGE_USER)
             machine_post_execute();
+
+        if(machine_get_core_state() == ACTIVE_MODE){
+            if(machine_get_core() == PRIMARY_CORE)
+                machine_set_core(SECONDARY_CORE);
+            else
+                machine_set_core(PRIMARY_CORE);
+        }
     }
 
     return TRUE;
@@ -1287,25 +1310,37 @@ int machine_execute_iret()
 }
 
 /* Returns the mode */
-int machine_get_mode()
+int machine_get_mode(int core)
 {
-    return _thecpu.mode;
+    return _thecpu.mode[core];
 }
 
 /* Set the mode */
-void machine_set_mode(int mode)
+void machine_set_mode(int mode, int core)
 {
-    _thecpu.mode = mode;
+    _thecpu.mode[core] = mode;
+}
+
+/* Returns the core */
+int *machine_get_core()
+{
+    return _thecpu.core;
+}
+
+/* Set the core */
+void machine_set_core(int core)
+{
+    _thecpu.core = core;
 }
 
 /* Returns the secondary core mode */
-int machine_get_core()
+int machine_get_core_state()
 {
     return _thecpu.core_state;
 }
 
 /* Set the secondary core mode */
-void machine_set_core(int mode)
+void machine_set_core_state(int mode)
 {
     _thecpu.core_state = mode;
 }

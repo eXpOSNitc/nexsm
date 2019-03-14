@@ -48,7 +48,7 @@
 #define REG_PORT_HIGH 23
 
 #define REG_KERN_LOW 27
-#define REG_KERN_HIGH 32
+#define REG_KERN_HIGH 33
 
 #define REG_COUNT 20
 
@@ -57,7 +57,6 @@ typedef xsm_word xsm_reg;
 int registers_init();
 int registers_get_register_code(const char *name);
 xsm_reg *registers_get_register(const char *name, int core);
-xsm_reg *registers_core_register();
 void registers_destroy();
 const char **registers_names();
 int registers_len();

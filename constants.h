@@ -10,7 +10,7 @@
 #define XSM_NUM_CORES 2
 
 #define XSM_REGSIZE XSM_WORD_SIZE
-#define XSM_NUM_REG 33
+#define XSM_NUM_REG 34
 
 #define XSM_ILLINSTR -1
 #define XSM_SUCCESS 1

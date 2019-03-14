@@ -97,8 +97,8 @@ typedef struct _console_operation
 
 typedef struct _xsm_cpu
 {
-    int timer, mode;
-    int core_state;
+    int timer, mode[2];
+    int core, core_state;
     int disk_state, disk_wait;
     int console_state, console_wait;
 
@@ -167,10 +167,12 @@ int machine_schedule_in(int firetime);
 int machine_execute_ini();
 int machine_execute_in_do(xsm_word *word);
 int machine_execute_iret();
-int machine_get_mode();
-void machine_set_mode(int mode);
+int machine_get_mode(int core);
+void machine_set_mode(int mode, int core);
 int machine_get_core();
-void machine_set_core(int mode);
+void machine_set_core(int core);
+int machine_get_core_state();
+void machine_set_core_state(int mode);
 void machine_destroy();
 
 #endif

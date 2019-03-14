@@ -9,8 +9,6 @@ An interface for handling registers.
 
 static xsm_reg *_registers[XSM_NUM_CORES];
 
-static xsm_reg *_core_register;
-
 static const char *_register_names[] = {
     "R0",
     "R1",
@@ -47,9 +45,8 @@ static const char *_register_names[] = {
     "EIP",
     "EC",
     "EPN",
-    "EMA"};
-
-static const char *_shared_register_names[] = {
+    "EMA",
+    
     "CORE"};
 
 /* Initialise the registers */
@@ -63,12 +60,6 @@ int registers_init()
     if (!_registers)
         return XSM_FAILURE;
 
-    _core_register = (xsm_reg *)malloc(sizeof(xsm_reg));
-
-    if (!_core_register)
-        return XSM_FAILURE;
-
-    word_store_integer(_core_register, RESET_MODE);
     return XSM_SUCCESS;
 }
 
@@ -81,9 +72,6 @@ int registers_get_register_code(const char *name)
         if (!strcasecmp(name, _register_names[i]))
             return i;
 
-    if (!strcasecmp(name, "CORE"))
-        return CORE;
-
     return -1;
 }
 
@@ -91,9 +79,6 @@ int registers_get_register_code(const char *name)
 xsm_reg *registers_get_register(const char *name, int core)
 {
     int code = registers_get_register_code(name);
-
-    if (code == CORE)
-        return &_core_register;
 
     if (core < 0 || core >= XSM_NUM_CORES)
         return NULL;
@@ -104,17 +89,10 @@ xsm_reg *registers_get_register(const char *name, int core)
     return NULL;
 }
 
-/* Returns the core register */
-xsm_reg *registers_core_register()
-{
-    return _core_register;
-}
-
 /* Deallocates the registers */
 void registers_destroy()
 {
     free(_registers);
-    free(_core_register);
 }
 
 /* Returns the register names */
@@ -173,9 +151,6 @@ int registers_umode(const char *reg)
         return FALSE;
 
     if (code >= REG_KERN_LOW && code <= REG_KERN_LOW)
-        return FALSE;
-
-    if (code == CORE)
         return FALSE;
 
     return TRUE;
