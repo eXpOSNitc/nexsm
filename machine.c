@@ -48,6 +48,11 @@ const char *instructions[] = {
     "INI",
     "OUT",
     "IRET",
+
+    "TSL",
+    "START",
+    "RESET",
+
     "HALT",
     "NOP"};
 
@@ -73,7 +78,7 @@ int machine_init(xsm_options *options)
     word_store_string(memory_get_word(4), "JMP 512");
 
     /* Set up IP */
-    ipreg = machine_get_ipreg();
+    ipreg = machine_get_ipreg(PRIMARY_CORE);
     word_store_integer(ipreg, 0);
 
     machine_set_mode(PRIVILEGE_KERNEL);
@@ -84,6 +89,9 @@ int machine_init(xsm_options *options)
 
     /* Initialise timer clock*/
     _thecpu.timer = _theoptions.timer;
+
+    /* Reset the mode for secondary core */
+    _thecpu.core_state = RESET_MODE;
 
     return XSM_SUCCESS;
 }
@@ -101,25 +109,25 @@ int machine_get_opcode(const char *instr)
 }
 
 /* Retieve the IP register */
-xsm_word *machine_get_ipreg()
+xsm_word *machine_get_ipreg(int core)
 {
-    return registers_get_register("IP");
+    return registers_get_register("IP", core);
 }
 
 /* Retrieve the SP register */
-xsm_word *machine_get_spreg()
+xsm_word *machine_get_spreg(int core)
 {
-    return registers_get_register("SP");
+    return registers_get_register("SP", core);
 }
 
 /* Retrieve the given register */
-xsm_word *machine_get_register(const char *name)
+xsm_word *machine_get_register(const char *name, int core)
 {
     int mode;
     xsm_word *reg;
 
     mode = machine_get_mode();
-    reg = registers_get_register(name);
+    reg = registers_get_register(name, core);
 
     if (!reg)
         machine_register_exception("No such register", EXP_ILLINSTR);
@@ -161,12 +169,12 @@ int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max)
 
     if (strlen(buffer) == 0)
     {
-        word_store_integer(machine_get_ipreg(), ip_val + 2);
+        word_store_integer(machine_get_ipreg(), ip_val + XSM_INSTRUCTION_SIZE);
         machine_register_exception("The simulator has encountered a NULL instruction", EXP_ILLINSTR);
     }
 
     /* Trim */
-    for (i = 0; i < bytes_to_read; ++i)
+    for (i = 0; i < bytes_to_read; i++)
         if (buffer[i] == '\0')
             for (j = i; j < bytes_to_read / 2; j++)
                 buffer[j] = ' ';
@@ -184,7 +192,7 @@ int machine_run()
     YYSTYPE token_info;
     xsm_word *ipreg;
 
-    ipreg = machine_get_ipreg();
+    ipreg = machine_get_ipreg(PRIMARY_CORE);
 
     while (TRUE)
     {
@@ -1288,6 +1296,18 @@ int machine_get_mode()
 void machine_set_mode(int mode)
 {
     _thecpu.mode = mode;
+}
+
+/* Returns the secondary core mode */
+int machine_get_core()
+{
+    return _thecpu.core_state;
+}
+
+/* Set the secondary core mode */
+void machine_set_core(int mode)
+{
+    _thecpu.core_state = mode;
 }
 
 /* Deallocate the machine */

@@ -42,6 +42,8 @@
 #define EPN 31
 #define EMA 32
 
+#define CORE 33
+
 #define REG_PORT_LOW 20
 #define REG_PORT_HIGH 23
 
@@ -54,15 +56,15 @@ typedef xsm_word xsm_reg;
 
 int registers_init();
 int registers_get_register_code(const char *name);
-xsm_reg *registers_get_register(const char *name);
-xsm_reg *registers_zero_register();
+xsm_reg *registers_get_register(const char *name, int core);
+xsm_reg *registers_core_register();
 void registers_destroy();
 const char **registers_names();
 int registers_len();
-int registers_get_integer(const char *name);
-char *registers_get_string(const char *name);
-int registers_store_integer(const char *name, int val);
-int registers_store_string(const char *name, char *str);
+int registers_get_integer(const char *name, int core);
+char *registers_get_string(const char *name, int core);
+int registers_store_integer(const char *name, int val, int core);
+int registers_store_string(const char *name, char *str, int core);
 int registers_umode(const char *reg);
 
 #endif

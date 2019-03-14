@@ -33,6 +33,7 @@ int tokenize_next_token(YYSTYPE *token_info)
         return token_type;
     }
 }
+
 /* Peeks the next token */
 int tokenize_peek(YYSTYPE *token_info)
 {

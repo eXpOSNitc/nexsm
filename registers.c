@@ -7,9 +7,9 @@ An interface for handling registers.
 #include <stdlib.h>
 #include <string.h>
 
-static xsm_reg *_registers;
+static xsm_reg *_registers[XSM_NUM_CORES];
 
-static xsm_reg *_zero_register;
+static xsm_reg *_core_register;
 
 static const char *_register_names[] = {
     "R0",
@@ -49,20 +49,26 @@ static const char *_register_names[] = {
     "EPN",
     "EMA"};
 
+static const char *_shared_register_names[] = {
+    "CORE"};
+
 /* Initialise the registers */
 int registers_init()
 {
-    _registers = (xsm_reg *)malloc(sizeof(xsm_reg) * XSM_NUM_REG);
+    int i;
+
+    for (i = 0; i < XSM_NUM_CORES; i++)
+        _registers[i] = (xsm_reg *)malloc(sizeof(xsm_reg) * XSM_NUM_REG);
 
     if (!_registers)
         return XSM_FAILURE;
 
-    _zero_register = (xsm_reg *)malloc(sizeof(xsm_reg));
+    _core_register = (xsm_reg *)malloc(sizeof(xsm_reg));
 
-    if (!_zero_register)
+    if (!_core_register)
         return XSM_FAILURE;
 
-    word_store_integer(_zero_register, 0);
+    word_store_integer(_core_register, RESET_MODE);
     return XSM_SUCCESS;
 }
 
@@ -75,30 +81,40 @@ int registers_get_register_code(const char *name)
         if (!strcasecmp(name, _register_names[i]))
             return i;
 
+    if (!strcasecmp(name, "CORE"))
+        return CORE;
+
     return -1;
 }
 
 /* Returns the register for the given register name */
-xsm_reg *registers_get_register(const char *name)
+xsm_reg *registers_get_register(const char *name, int core)
 {
     int code = registers_get_register_code(name);
 
+    if (code == CORE)
+        return &_core_register;
+
+    if (core < 0 || core >= XSM_NUM_CORES)
+        return NULL;
+
     if (code > -1)
-        return &_registers[code];
+        return &_registers[core][code];
 
     return NULL;
 }
 
-/* Returns the zero register */
-xsm_reg *registers_zero_register()
+/* Returns the core register */
+xsm_reg *registers_core_register()
 {
-    return _zero_register;
+    return _core_register;
 }
 
 /* Deallocates the registers */
 void registers_destroy()
 {
     free(_registers);
+    free(_core_register);
 }
 
 /* Returns the register names */
@@ -114,16 +130,16 @@ int registers_len()
 }
 
 /* Returns the integer value stored in the given register */
-int registers_get_integer(const char *name)
+int registers_get_integer(const char *name, int core)
 {
-    xsm_word *reg = registers_get_register(name);
+    xsm_word *reg = registers_get_register(name, core);
     return word_get_integer(reg);
 }
 
 /* Returns the string value stored in the given register */
-char *registers_get_string(const char *name)
+char *registers_get_string(const char *name, int core)
 {
-    xsm_word *reg = registers_get_register(name);
+    xsm_word *reg = registers_get_register(name, core);
 
     if (!reg)
         return NULL;
@@ -132,16 +148,16 @@ char *registers_get_string(const char *name)
 }
 
 /* Stores the integer value in the given register */
-int registers_store_integer(const char *name, int val)
+int registers_store_integer(const char *name, int val, int core)
 {
-    xsm_word *reg = registers_get_register(name);
+    xsm_word *reg = registers_get_register(name, core);
     return word_store_integer(reg, val);
 }
 
 /* Stores the string value in the given register */
-int registers_store_string(const char *name, char *str)
+int registers_store_string(const char *name, char *str, int core)
 {
-    xsm_word *reg = registers_get_register(name);
+    xsm_word *reg = registers_get_register(name, core);
     return word_store_string(reg, str);
 }
 
@@ -157,6 +173,9 @@ int registers_umode(const char *reg)
         return FALSE;
 
     if (code >= REG_KERN_LOW && code <= REG_KERN_LOW)
+        return FALSE;
+
+    if (code == CORE)
         return FALSE;
 
     return TRUE;

@@ -56,17 +56,22 @@
 #define INI 31
 #define OUT 32
 #define IRET 33
-#define HALT 34
-#define NOP 35
+
+#define TSL 34
+#define START 35
+#define RESET 36
+
+#define HALT 37
+#define NOP 38
 
 /* Between these values are the privileged instructions. */
 #define TOKEN_KERN_LOW 23
-#define TOKEN_KERN_HIGH 34
+#define TOKEN_KERN_HIGH 37
 
 #define INTERRUPT_LOW 4
 #define INTERRUPT_HIGH 18
 
-#define XSM_INSTRUCTION_COUNT 36
+#define XSM_INSTRUCTION_COUNT 39
 
 #define XSM_DISKOP_LOAD 0
 #define XSM_DISKOP_STORE 1
@@ -92,9 +97,8 @@ typedef struct _console_operation
 
 typedef struct _xsm_cpu
 {
-    xsm_reg *regs;
-    int timer;
-    int mode;
+    int timer, mode;
+    int core_state;
     int disk_state, disk_wait;
     int console_state, console_wait;
 
@@ -117,9 +121,9 @@ typedef struct _xsm_options
 
 int machine_init(xsm_options *options);
 int machine_get_opcode(const char *instr);
-xsm_word *machine_get_ipreg();
-xsm_word *machine_get_spreg();
-xsm_word *machine_get_register(const char *name);
+xsm_word *machine_get_ipreg(int core);
+xsm_word *machine_get_spreg(int core);
+xsm_word *machine_get_register(const char *name, int core);
 int machine_instr_req_privilege(int opcode);
 int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max);
 int machine_run();
@@ -165,6 +169,8 @@ int machine_execute_in_do(xsm_word *word);
 int machine_execute_iret();
 int machine_get_mode();
 void machine_set_mode(int mode);
+int machine_get_core();
+void machine_set_core(int mode);
 void machine_destroy();
 
 #endif
