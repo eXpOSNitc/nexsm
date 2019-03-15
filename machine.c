@@ -829,11 +829,11 @@ int machine_execute_logical(int opcode)
 
     if (TOKEN_COMMA != token)
     {
-        machine_register_exception("Incorrect logical instruction.", EXP_ILLINSTR);
+        machine_register_exception("Incorrect logical instruction", EXP_ILLINSTR);
     }
 
     token = tokenize_next_token(&token_info);
-    src_right_reg = machine_get_register(token_info.str);
+    src_right_reg = machine_read_register(token_info.str);
 
     /* String operation */
     if (word_get_unix_type(src_left_reg) == XSM_TYPE_STRING || word_get_unix_type(src_right_reg) == XSM_TYPE_STRING)

@@ -142,7 +142,7 @@ int debug_show_interface()
         prev_instr[0] = '\0';
 
     printf("Previous instruction at IP = %d: %s\n", _db_status.prev_ip, prev_instr);
-    printf("Mode: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", debug_active_process());
+    printf("Mode: %s \t Core: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", (machine_get_core() == PRIMARY_CORE) ? "PRIMARY" : "SECONDARY", debug_active_process());
 
     addr = machine_translate_address(_db_status.ip, FALSE, DEBUG_FETCH);
     if (addr >= 0)
@@ -435,16 +435,17 @@ int debug_skip_n(int num, int debug_command)
 /* Debug reg command */
 int debug_display_all_registers()
 {
-    int num_regs, i;
+    int num_regs, core, i;
     char *content;
     const char **reg_names;
 
     reg_names = registers_names();
     num_regs = registers_len();
+    core = machine_get_core();
 
     for (i = 0; i < num_regs; ++i)
     {
-        content = registers_get_string(reg_names[i]);
+        content = registers_get_string(reg_names[i], core);
         printf("%s: %s\t", reg_names[i], content);
 
         if ((i < 20 && i % 5 == 4) || i == 23 || i == 28)
@@ -458,7 +459,11 @@ int debug_display_all_registers()
 /* Debug reg regname command */
 int debug_display_register(const char *regname)
 {
-    char *content = registers_get_string(regname);
+    int core;
+    char *content;
+
+    core = machine_get_core();
+    content = registers_get_string(regname, core);
 
     if (!content)
     {
@@ -473,12 +478,13 @@ int debug_display_register(const char *regname)
 /* Debug reg reg_b_name reg_e_name command */
 int debug_display_range_reg(const char *reg_b_name, const char *reg_e_name)
 {
-    int num_regs, i;
+    int num_regs, core, i;
     char *content;
     const char **reg_names;
 
     reg_names = registers_names();
     num_regs = registers_len();
+    core = machine_get_core();
 
     for (i = 0; i < num_regs; ++i)
         if (!strcmp(reg_b_name, reg_names[i]))
@@ -486,7 +492,7 @@ int debug_display_range_reg(const char *reg_b_name, const char *reg_e_name)
 
     for (; i < num_regs; ++i)
     {
-        content = registers_get_string(reg_names[i]);
+        content = registers_get_string(reg_names[i], core);
         printf("%s: %s\n", reg_names[i], content);
 
         if (!strcmp(reg_e_name, reg_names[i]))
@@ -645,7 +651,10 @@ int debug_display_pcb()
 /* Debug pagetable command */
 int debug_display_pt_ptbr()
 {
-    int addr = registers_get_integer("PTBR");
+    int addr, core;
+
+    core = machine_get_core();
+    addr = registers_get_integer("PTBR", core);
     return debug_display_pt_at(addr);
 }
 
@@ -1107,17 +1116,18 @@ int debug_display_rf()
 /* Display location command */
 int debug_display_location(int loc)
 {
-    int mode, ptbr, ptlr, tr_loc;
+    int mode, core, ptbr, ptlr, tr_loc;
     xsm_word *word;
 
     mode = machine_get_mode();
+    core = machine_get_core();
 
     if (mode == PRIVILEGE_KERNEL)
         word = memory_get_word(loc);
     else
     {
-        ptbr = registers_get_integer("PTBR");
-        ptlr = registers_get_integer("PTLR");
+        ptbr = registers_get_integer("PTBR", core);
+        ptlr = registers_get_integer("PTLR", core);
         tr_loc = memory_translate_address(ptbr, ptlr, loc, FALSE);
 
         if (tr_loc < 0)

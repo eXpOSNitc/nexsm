@@ -94,7 +94,10 @@ xsm_reg *registers_get_register(const char *name, int core)
 /* Deallocates the registers */
 void registers_destroy()
 {
-    free(_registers);
+    int i;
+
+    for (i = 0; i < XSM_NUM_CORES; i++)
+        free(_registers[i]);
 }
 
 /* Returns the register names */
