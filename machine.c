@@ -91,7 +91,7 @@ int machine_init(xsm_options *options)
     machine_set_core(PRIMARY_CORE);
 
     /* Set the mode */
-    machine_set_mode(PRIVILEGE_KERNEL, PRIMARY_CORE);
+    machine_set_mode(PRIVILEGE_KERNEL);
 
     /* The disk and console is idle.*/
     _thecpu.console_state = XSM_CONSOLE_IDLE;
@@ -100,8 +100,22 @@ int machine_init(xsm_options *options)
     /* Initialise timer clock*/
     _thecpu.timer = _theoptions.timer;
 
-    /* Reset the mode for secondary core */
+    /* Reset the core state */
     _thecpu.core_state = RESET_MODE;
+
+    return XSM_SUCCESS;
+}
+
+/* Initialise the secondary core */
+int machine_init_dual(){
+    xsm_word *ipreg, *core_flag;
+
+    /* Set up IP */
+    ipreg = machine_get_ipreg(PRIMARY_CORE);
+    word_store_integer(ipreg, DUAL_BOOTSTRAP);
+
+    /* Reset the mode for secondary core */
+    _thecpu.core_state = ACTIVE_MODE;
 
     return XSM_SUCCESS;
 }
@@ -119,24 +133,27 @@ int machine_get_opcode(const char *instr)
 }
 
 /* Retieve the IP register */
-xsm_word *machine_get_ipreg(int core)
+xsm_word *machine_get_ipreg()
 {
+    int core = machine_get_core();
     return registers_get_register("IP", core);
 }
 
 /* Retrieve the SP register */
-xsm_word *machine_get_spreg(int core)
+xsm_word *machine_get_spreg()
 {
+    int core = machine_get_core();
     return registers_get_register("SP", core);
 }
 
 /* Retrieve the given register */
-xsm_word *machine_get_register(const char *name, int core)
+xsm_word *machine_get_register(const char *name)
 {
-    int mode;
+    int mode, core;
     xsm_word *reg;
 
-    mode = machine_get_mode(core);
+    core = machine_get_core();
+    mode = machine_get_mode();
     reg = registers_get_register(name, core);
 
     if (!reg)
@@ -151,6 +168,29 @@ xsm_word *machine_get_register(const char *name, int core)
 
     if (!strcasecmp(name, "CORE"))
         machine_register_exception("CORE flag can not be manipulated", EXP_ILLINSTR);
+
+    return reg;
+}
+
+/* Retrieve the given read-only register */
+xsm_word *machine_read_register(const char *name)
+{
+    int mode, core;
+    xsm_word *reg;
+
+    core = machine_get_core();
+    mode = machine_get_mode();
+    reg = registers_get_register(name, core);
+
+    if (!reg)
+        machine_register_exception("No such register", EXP_ILLINSTR);
+
+    if (mode == PRIVILEGE_USER)
+        if (!registers_umode(name))
+            machine_register_exception("Register not available in USER mode", EXP_ILLINSTR);
+
+    if (!strcasecmp(name, "IP"))
+        machine_register_exception("IP register can not be directly manipulated", EXP_ILLINSTR);
 
     return reg;
 }
@@ -174,7 +214,7 @@ int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max)
     bytes_to_read = XSM_INSTRUCTION_SIZE * XSM_WORD_SIZE;
     core = machine_get_core();
 
-    ip_reg = machine_get_ipreg(core);
+    ip_reg = machine_get_ipreg();
     ip_val = word_get_integer(ip_reg);
     ip_val = machine_translate_address(ip_val, FALSE, INSTR_FETCH);
     instr_mem = machine_memory_get_word(ip_val);
@@ -206,7 +246,7 @@ int machine_run()
     YYSTYPE token_info;
     xsm_word *ipreg;
 
-    ipreg = machine_get_ipreg(PRIMARY_CORE);
+    ipreg = machine_get_ipreg();
 
     while (TRUE)
     {
@@ -246,10 +286,8 @@ int machine_run()
         if (machine_execute_instruction(opcode) == XSM_HALT)
             break;
 
-        core = machine_get_core();
-
         /* Post-execute */
-        if (machine_get_mode(core) == PRIVILEGE_USER)
+        if (machine_get_mode() == PRIVILEGE_USER)
             machine_post_execute();
 
         if(machine_get_core_state() == ACTIVE_MODE){
@@ -266,7 +304,7 @@ int machine_run()
 /* Set the exception values */
 void machine_register_exception(char *message, int code)
 {
-    int mode = machine_get_mode();
+    int mode = machine_get_mode(machine_get_core());
     exception_set(message, code, mode);
 
     /* Abandon ship! Abandon ship! */
@@ -276,7 +314,7 @@ void machine_register_exception(char *message, int code)
 /* Handle the exception */
 int machine_handle_exception()
 {
-    int code, mode, curr_ip, num_regs, i;
+    int code, mode, core, curr_ip, num_regs, i;
     char *message, *content;
     const char **reg_names;
     xsm_word *reg_eip, *reg_epn, *reg_ec, *reg_ema;
@@ -286,15 +324,16 @@ int machine_handle_exception()
     word_store_integer(machine_get_ipreg(), curr_ip);
 
     /* Get the details about the exception. */
+    core = machine_get_core();
     mode = machine_get_mode();
     code = exception_code();
     message = exception_message();
 
     /* Get the exception registers. */
-    reg_eip = registers_get_register("EIP");
-    reg_epn = registers_get_register("EPN");
-    reg_ec = registers_get_register("EC");
-    reg_ema = registers_get_register("EMA");
+    reg_eip = registers_get_register("EIP", core);
+    reg_epn = registers_get_register("EPN", core);
+    reg_ec = registers_get_register("EC", core);
+    reg_ema = registers_get_register("EMA", core);
 
     // Fetch IP stored in EIP
     word_store_integer(reg_eip, curr_ip);
@@ -376,7 +415,7 @@ void machine_post_execute()
     }
     else if (_thecpu.disk_state == XSM_DISK_BUSY)
     {
-        if (_thecpu.disk_wait == 0)
+        if (_thecpu.disk_wait == 0 && machine_get_core() == PRIMARY_CORE)
         {
             if (_thecpu.disk_op.operation == XSM_DISKOP_LOAD)
             {
@@ -394,7 +433,7 @@ void machine_post_execute()
     }
     else if (_thecpu.console_state == XSM_CONSOLE_BUSY)
     {
-        if (_thecpu.console_wait == 0)
+        if (_thecpu.console_wait == 0 && machine_get_core() == PRIMARY_CORE)
         {
             if (_thecpu.console_op.operation == XSM_CONSOLE_PRINT)
             {
@@ -404,7 +443,7 @@ void machine_post_execute()
             else if (_thecpu.console_op.operation == XSM_CONSOLE_READ)
             {
                 machine_execute_in_do(&_thecpu.console_op.word);
-                dest_port = registers_get_register("P0");
+                dest_port = registers_get_register("P0", PRIMARY_CORE);
                 word_copy(dest_port, &_thecpu.console_op.word);
                 machine_execute_interrupt_do(XSM_INTERRUPT_CONSOLE);
             }
@@ -513,6 +552,15 @@ int machine_execute_instruction(int opcode)
         machine_execute_iret();
         break;
 
+    case TSL:
+        break;
+    
+    case START:
+        break;
+
+    case RESET:
+        break;
+
     case HALT:
         return XSM_HALT;
 
@@ -534,8 +582,10 @@ xsm_word *machine_get_address(int write)
 /* Returns the address in the instruction */
 int machine_get_address_int(int write)
 {
-    int token, address, ret_addr;
+    int token, address, ret_addr, core;
     YYSTYPE token_info;
+
+    core = machine_get_core();
 
     /* Skip the opening square bracket */
     tokenize_next_token(&token_info);
@@ -544,7 +594,7 @@ int machine_get_address_int(int write)
     switch (token)
     {
     case TOKEN_REGISTER:
-        address = registers_get_integer(token_info.str);
+        address = registers_get_integer(token_info.str, core);
         break;
 
     case TOKEN_NUMBER:
@@ -565,13 +615,14 @@ int machine_get_address_int(int write)
 /* Translate the logical address */
 int machine_translate_address(int address, int write, int type)
 {
-    int ptbr, ptlr, ret_addr, curr_ip;
+    int ptbr, ptlr, ret_addr, curr_ip, core;
 
-    if (_thecpu.mode == PRIVILEGE_KERNEL)
+    if (machine_get_mode() == PRIVILEGE_KERNEL)
         return address;
 
-    ptbr = word_get_integer(registers_get_register("PTBR"));
-    ptlr = word_get_integer(registers_get_register("PTLR"));
+    core = machine_get_core();
+    ptbr = word_get_integer(registers_get_register("PTBR", core));
+    ptlr = word_get_integer(registers_get_register("PTLR", core));
     ret_addr = memory_translate_address(ptbr, ptlr, address, write);
 
     if (ret_addr < 0 && type == DEBUG_FETCH)
@@ -857,10 +908,11 @@ int machine_execute_logical(int opcode)
 /* Execute jump instructions */
 int machine_execute_jump(int opcode)
 {
-    int test, target, token;
+    int test, target, token, core;
     YYSTYPE token_info;
 
     token = tokenize_next_token(&token_info);
+    core = machine_get_core();
 
     if (token == TOKEN_NUMBER)
     {
@@ -870,10 +922,10 @@ int machine_execute_jump(int opcode)
     else
     {
         // String content is true
-        if (word_get_unix_type(machine_get_register(token_info.str)) == XSM_TYPE_STRING)
+        if (word_get_unix_type(machine_read_register(token_info.str)) == XSM_TYPE_STRING)
             test = 1;
         else
-            test = word_get_integer(machine_get_register(token_info.str));
+            test = word_get_integer(machine_read_register(token_info.str));
 
         /* Skip the comma */
         tokenize_next_token(&token_info);
@@ -886,7 +938,7 @@ int machine_execute_jump(int opcode)
 
     // Unconditional jump
     if (test)
-        word_store_integer(registers_get_register("IP"), target);
+        word_store_integer(registers_get_register("IP", core), target);
 
     return XSM_SUCCESS;
 }
@@ -1188,17 +1240,18 @@ int machine_execute_encrypt()
 /* Execute BACKUP instruction */
 int machine_execute_backup()
 {
-    int ireg;
+    int ireg, core;
     char str_reg[5];
     xsm_word *reg;
 
-    reg = registers_get_register("BP");
+    core = machine_get_core();
+    reg = registers_get_register("BP", core);
     machine_push_do(reg);
 
     for (ireg = 0; ireg < REG_COUNT; ++ireg)
     {
         sprintf(str_reg, "R%d", ireg);
-        reg = registers_get_register(str_reg);
+        reg = registers_get_register(str_reg, core);
         machine_push_do(reg);
     }
 
@@ -1208,18 +1261,20 @@ int machine_execute_backup()
 /* Execute RESTORE instruction */
 int machine_execute_restore()
 {
-    int ireg;
+    int ireg, core;
     char str_reg[5];
     xsm_word *reg;
+
+    core = machine_get_core();
 
     for (ireg = REG_COUNT - 1; ireg >= 0; ireg--)
     {
         sprintf(str_reg, "R%d", ireg);
-        reg = registers_get_register(str_reg);
+        reg = registers_get_register(str_reg, core);
         machine_pop_do(reg);
     }
 
-    reg = registers_get_register("BP");
+    reg = registers_get_register("BP", core);
     machine_pop_do(reg);
 
     return XSM_SUCCESS;
@@ -1250,8 +1305,9 @@ int machine_execute_print_do(xsm_word *word)
 /* Execute OUT instruction */
 int machine_execute_print()
 {
-    int val;
-    xsm_word *reg = registers_get_register("P1");
+    int val, core;
+    core = machine_get_core();
+    xsm_word *reg = registers_get_register("P1", core);
     return machine_execute_print_do(reg);
 }
 
@@ -1271,12 +1327,15 @@ int machine_schedule_in(int firetime)
 /* Execute INI instruction */
 int machine_execute_ini()
 {
+    int core;
     xsm_word *reg;
+
+    core = machine_get_core();
 
     if (!_theoptions.debug)
         return XSM_SUCCESS;
 
-    reg = registers_get_register("P0");
+    reg = registers_get_register("P0", core);
     return machine_execute_in_do(reg);
 }
 
@@ -1310,19 +1369,21 @@ int machine_execute_iret()
 }
 
 /* Returns the mode */
-int machine_get_mode(int core)
+int machine_get_mode()
 {
+    int core = machine_get_core();
     return _thecpu.mode[core];
 }
 
 /* Set the mode */
-void machine_set_mode(int mode, int core)
+void machine_set_mode(int mode)
 {
+    int core = machine_get_core();
     _thecpu.mode[core] = mode;
 }
 
 /* Returns the core */
-int *machine_get_core()
+int machine_get_core()
 {
     return _thecpu.core;
 }

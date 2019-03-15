@@ -46,7 +46,7 @@ static const char *_register_names[] = {
     "EC",
     "EPN",
     "EMA",
-    
+
     "CORE"};
 
 /* Initialise the registers */
@@ -55,10 +55,12 @@ int registers_init()
     int i;
 
     for (i = 0; i < XSM_NUM_CORES; i++)
+    {
         _registers[i] = (xsm_reg *)malloc(sizeof(xsm_reg) * XSM_NUM_REG);
 
-    if (!_registers)
-        return XSM_FAILURE;
+        if (!_registers[i])
+            return XSM_FAILURE;
+    }
 
     return XSM_SUCCESS;
 }

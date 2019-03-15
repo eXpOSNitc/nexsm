@@ -18,6 +18,7 @@
 #define PRIVILEGE_USER 0
 #define PRIVILEGE_KERNEL 1
 
+#define DUAL_BOOTSTRAP 128 * XSM_PAGE_SIZE
 #define XSM_EXCEPTION_OCCURED -1
 
 /* Operation codes. */
@@ -120,10 +121,12 @@ typedef struct _xsm_options
 } xsm_options;
 
 int machine_init(xsm_options *options);
+int machine_init_dual();
 int machine_get_opcode(const char *instr);
-xsm_word *machine_get_ipreg(int core);
-xsm_word *machine_get_spreg(int core);
-xsm_word *machine_get_register(const char *name, int core);
+xsm_word *machine_get_ipreg();
+xsm_word *machine_get_spreg();
+xsm_word *machine_get_register(const char *name);
+xsm_word *machine_read_register(const char *name);
 int machine_instr_req_privilege(int opcode);
 int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max);
 int machine_run();
@@ -167,8 +170,8 @@ int machine_schedule_in(int firetime);
 int machine_execute_ini();
 int machine_execute_in_do(xsm_word *word);
 int machine_execute_iret();
-int machine_get_mode(int core);
-void machine_set_mode(int mode, int core);
+int machine_get_mode();
+void machine_set_mode(int mode);
 int machine_get_core();
 void machine_set_core(int core);
 int machine_get_core_state();
