@@ -107,7 +107,8 @@ int machine_init(xsm_options *options)
 }
 
 /* Initialise the secondary core */
-int machine_init_dual(){
+int machine_init_dual()
+{
     xsm_word *ipreg, *core_flag;
 
     /* Set up IP */
@@ -115,7 +116,7 @@ int machine_init_dual(){
     word_store_integer(ipreg, DUAL_BOOTSTRAP);
 
     /* Reset the mode for secondary core */
-    _thecpu.core_state = ACTIVE_MODE;
+    machine_set_core_state(ACTIVE_MODE);
 
     return XSM_SUCCESS;
 }
@@ -290,8 +291,9 @@ int machine_run()
         if (machine_get_mode() == PRIVILEGE_USER)
             machine_post_execute();
 
-        if(machine_get_core_state() == ACTIVE_MODE){
-            if(machine_get_core() == PRIMARY_CORE)
+        if (machine_get_core_state() == ACTIVE_MODE)
+        {
+            if (machine_get_core() == PRIMARY_CORE)
                 machine_set_core(SECONDARY_CORE);
             else
                 machine_set_core(PRIMARY_CORE);
@@ -354,7 +356,6 @@ int machine_handle_exception()
     default:
         word_store_string(reg_ema, "");
         word_store_string(reg_epn, "");
-        break;
     }
 
     if (mode == PRIVILEGE_USER)
@@ -553,12 +554,15 @@ int machine_execute_instruction(int opcode)
         break;
 
     case TSL:
+        machine_execute_tsl();
         break;
-    
+
     case START:
+        machine_execute_start();
         break;
 
     case RESET:
+        machine_execute_reset();
         break;
 
     case HALT:
@@ -708,7 +712,7 @@ int machine_execute_mov()
         break;
 
     case TOKEN_REGISTER:
-        r_address = machine_get_register(token_info.str);
+        r_address = machine_read_register(token_info.str);
         word_copy(l_address, r_address);
         tokenize_next_token(&token_info);
         break;
@@ -750,7 +754,7 @@ int machine_execute_arith(int opcode)
         r_value = token_info.val;
     else
     {
-        r_operand = machine_get_register(token_info.str);
+        r_operand = machine_read_register(token_info.str);
         r_value = word_get_integer(r_operand);
     }
 
@@ -953,7 +957,7 @@ int machine_execute_stack(int opcode)
     token = tokenize_next_token(&token_info);
 
     if (token == TOKEN_REGISTER)
-        reg = machine_get_register(token_info.str);
+        reg = machine_read_register(token_info.str);
     else
         machine_register_exception("Stack instructions require a register as argument", EXP_ILLINSTR);
 
@@ -1056,7 +1060,7 @@ int machine_execute_call()
     if (token == TOKEN_NUMBER)
         target = token_info.val;
     else
-        target = word_get_integer(machine_get_register(token_info.str));
+        target = word_get_integer(machine_read_register(token_info.str));
 
     return machine_execute_call_do(target);
 }
@@ -1182,7 +1186,7 @@ int machine_read_disk_arg()
         return token_info.val;
     else if (token == TOKEN_REGISTER)
     {
-        reg = machine_get_register(token_info.str);
+        reg = machine_read_register(token_info.str);
         return word_get_integer(reg);
     }
     else
@@ -1365,6 +1369,72 @@ int machine_execute_iret()
 
     ipreg = machine_get_ipreg();
     word_copy(ipreg, &target);
+    return XSM_SUCCESS;
+}
+
+/* Execute TSL instruction */
+int machine_execute_tsl()
+{
+    int token;
+    xsm_word *l_address, *r_address;
+    YYSTYPE token_info;
+
+    token = tokenize_peek(&token_info);
+
+    switch (token)
+    {
+    case TOKEN_DREF_L:
+        _thecpu.mem_left = machine_get_address_int(TRUE);
+        _thecpu.mem_right = _thecpu.mem_right;
+        l_address = machine_memory_get_word(_thecpu.mem_left);
+        break;
+
+    default:
+        machine_register_exception("Malformed instruction", EXP_ILLINSTR);
+    }
+
+    token = tokenize_next_token(&token_info);
+
+    if (token != TOKEN_COMMA)
+        machine_register_exception("Malformed instruction", EXP_ILLINSTR);
+
+    token = tokenize_peek(&token_info);
+
+    switch (token)
+    {
+    case TOKEN_REGISTER:
+        r_address = machine_get_register(token_info.str);
+        word_copy(r_address, l_address);
+        word_store_integer(l_address, 1);
+        tokenize_next_token(&token_info);
+        break;
+
+    default:
+        machine_register_exception("Malformed instruction", EXP_ILLINSTR);
+    }
+
+    return XSM_SUCCESS;
+}
+
+/* Execute START instruction */
+int machine_execute_start()
+{
+    int state = machine_get_core_state();
+
+    if (state == RESET_MODE)
+        machine_init_dual();
+
+    return XSM_SUCCESS;
+}
+
+/* Execute RESET instruction */
+int machine_execute_reset()
+{
+    int state = machine_get_core_state();
+
+    if (state == ACTIVE_MODE)
+        machine_set_core_state(RESET_MODE);
+
     return XSM_SUCCESS;
 }
 
