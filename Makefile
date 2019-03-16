@@ -2,7 +2,6 @@ CC = cc
 CFLAGS = -g
 LEX = lex
 RM = rm
-RMFLAGS = -v
 
 default: xsm
 
@@ -46,4 +45,4 @@ debug.o: debug.c debug.h
 	$(CC) $(CFLAGS) -c debug.c
 
 clean:
-	$(RM) $(RMFLAGS) *.o xsm mem lex.yy.c
+	$(RM) *.o xsm mem lex.yy.c
