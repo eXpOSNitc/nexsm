@@ -291,7 +291,7 @@ int machine_run()
         if (machine_get_mode() == PRIVILEGE_USER)
             machine_post_execute();
 
-        if (machine_get_core_state() == ACTIVE_MODE)
+        if (machine_get_core_state() == ACTIVE_MODE && machine_get_mode() == PRIVILEGE_USER)
         {
             if (machine_get_core() == PRIMARY_CORE)
                 machine_set_core(SECONDARY_CORE);
