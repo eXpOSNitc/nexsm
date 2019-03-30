@@ -58,9 +58,9 @@
 #define OUT 32
 #define IRET 33
 
-#define TSL 34
-#define START 35
-#define RESET 36
+#define START 34
+#define RESET 35
+#define TSL 36
 
 #define HALT 37
 #define NOP 38
