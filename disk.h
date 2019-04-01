@@ -4,7 +4,7 @@
 
 #include "types.h"
 
-#define XSM_DISK_BLOCK_NUM 512
+#define XSM_DISK_BLOCK_NUM 528
 #define XSM_DISK_BLOCK_SIZE XSM_PAGE_SIZE
 
 int disk_init(const char *filename);
