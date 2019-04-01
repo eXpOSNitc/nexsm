@@ -1383,10 +1383,9 @@ int machine_execute_tsl()
 
     switch (token)
     {
-    case TOKEN_DREF_L:
-        _thecpu.mem_left = machine_get_address_int(TRUE);
-        _thecpu.mem_right = _thecpu.mem_right;
-        l_address = machine_memory_get_word(_thecpu.mem_left);
+    case TOKEN_REGISTER:
+        l_address = machine_get_register(token_info.str);
+        tokenize_next_token(&token_info);
         break;
 
     default:
@@ -1402,11 +1401,12 @@ int machine_execute_tsl()
 
     switch (token)
     {
-    case TOKEN_REGISTER:
-        r_address = machine_get_register(token_info.str);
-        word_copy(r_address, l_address);
-        word_store_integer(l_address, 1);
-        tokenize_next_token(&token_info);
+    case TOKEN_DREF_L:
+        _thecpu.mem_left = machine_get_address_int(TRUE);
+        _thecpu.mem_right = _thecpu.mem_right;
+        r_address = machine_memory_get_word(_thecpu.mem_left);
+        word_copy(l_address, r_address);
+        word_store_integer(r_address, 1);
         break;
 
     default:
