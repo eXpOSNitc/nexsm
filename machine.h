@@ -98,7 +98,7 @@ typedef struct _console_operation
 
 typedef struct _xsm_cpu
 {
-    int timer, mode[2];
+    int timer[2], mode[2];
     int core, core_state;
     int disk_state, disk_wait;
     int console_state, console_wait;

@@ -25,26 +25,29 @@
 #define DEBUG_DISKSTATUS 12
 #define DEBUG_SYSTEMSTATUS 13
 #define DEBUG_TERMINALSTATUS 14
-#define DEBUG_BUFFERTABLE 15
-#define DEBUG_INODETABLE 16
-#define DEBUG_USERTABLE 17
-#define DEBUG_DISKFREELIST 18
-#define DEBUG_ROOTFILE 19
-#define DEBUG_LOCATION 20
-#define DEBUG_VAL 21
-#define DEBUG_WATCH 22
-#define DEBUG_WATCHCLEAR 23
-#define DEBUG_LIST 24
-#define DEBUG_PAGE 25
-#define DEBUG_EXIT 26
-#define DEBUG_HELP 27
+#define DEBUG_ACCESSLOCK 15
+#define DEBUG_BUFFERTABLE 16
+#define DEBUG_INODETABLE 17
+#define DEBUG_USERTABLE 18
+#define DEBUG_DISKFREELIST 19
+#define DEBUG_ROOTFILE 20
+#define DEBUG_LOCATION 21
+#define DEBUG_VAL 22
+#define DEBUG_WATCH 23
+#define DEBUG_WATCHCLEAR 24
+#define DEBUG_LIST 25
+#define DEBUG_PAGE 26
+#define DEBUG_EXIT 27
+#define DEBUG_HELP 28
 
-#define DEBUG_COUNT 28
+#define DEBUG_COUNT 29
 
 #define DEBUG_LOC_PT 28672
 #define MAX_PROC_NUM 16
 #define PT_ENTRY_SIZE 16
 #define DEBUG_PROC_RUNNING 2
+#define DEBUG_PROC_RUNNING2 13
+#define DEBUG_PROC_RUNNING3 14
 #define MAX_NUM_PAGES 10
 #define PTBR_PCB_OFFSET 14
 #define DEBUG_PT_BASE 29696
@@ -57,6 +60,7 @@
 #define DEBUG_LOC_DISKSTATUS 29552
 #define DEBUG_LOC_SYSTEMSTATUS 29560
 #define DEBUG_LOC_TERMINALSTATUS 29568
+#define DEBUG_LOC_ACCESSLOCK 29576
 #define DEBUG_LOC_BUFFERTABLE 30016
 #define DEBUG_LOC_DISKMAPTABLE 30032
 #define DEBUG_LOC_ROOTFILE 31744
@@ -70,6 +74,7 @@
 #define MAX_USER_NUM 16
 #define MAX_SEM_COUNT 32
 #define MAX_MEM_PAGE 128
+#define MAX_LOCK_NUM 18
 #define MAX_BUFFER 4
 #define MAX_RESOURCE 8
 
@@ -123,6 +128,7 @@ int debug_display_fst();
 int debug_display_dst();
 int debug_display_sst();
 int debug_display_tst();
+int debug_display_alt();
 int debug_display_bt();
 int debug_display_inodetable();
 int debug_display_usertable();

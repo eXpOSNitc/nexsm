@@ -49,9 +49,9 @@ const char *instructions[] = {
     "OUT",
     "IRET",
 
-    "TSL",
     "START",
     "RESET",
+    "TSL",
 
     "HALT",
     "NOP"};
@@ -98,7 +98,7 @@ int machine_init(xsm_options *options)
     _thecpu.disk_state = XSM_DISK_IDLE;
 
     /* Initialise timer clock*/
-    _thecpu.timer = _theoptions.timer;
+    _thecpu.timer[PRIMARY_CORE] = _theoptions.timer;
 
     /* Reset the core state */
     _thecpu.core_state = RESET_MODE;
@@ -112,8 +112,14 @@ int machine_init_dual()
     xsm_word *ipreg, *core_flag;
 
     /* Set up IP */
-    ipreg = machine_get_ipreg(PRIMARY_CORE);
+    ipreg = registers_get_register("IP", SECONDARY_CORE);
     word_store_integer(ipreg, DUAL_BOOTSTRAP);
+
+    /* Set the mode */
+    _thecpu.mode[SECONDARY_CORE] = PRIVILEGE_KERNEL;
+
+    /* Initialise timer clock*/
+    _thecpu.timer[SECONDARY_CORE] = _theoptions.timer;
 
     /* Reset the mode for secondary core */
     machine_set_core_state(ACTIVE_MODE);
@@ -247,8 +253,6 @@ int machine_run()
     YYSTYPE token_info;
     xsm_word *ipreg;
 
-    ipreg = machine_get_ipreg();
-
     while (TRUE)
     {
         /* Set the exception point */
@@ -263,6 +267,7 @@ int machine_run()
         tokenize_reset();
 
         /* Pre-execute */
+        ipreg = machine_get_ipreg();
         ipval = word_get_integer(ipreg);
         machine_pre_execute(ipval);
 
@@ -291,7 +296,7 @@ int machine_run()
         if (machine_get_mode() == PRIVILEGE_USER)
             machine_post_execute();
 
-        if (machine_get_core_state() == ACTIVE_MODE && machine_get_mode() == PRIVILEGE_USER)
+        if (machine_get_core_state() == ACTIVE_MODE)
         {
             if (machine_get_core() == PRIMARY_CORE)
                 machine_set_core(SECONDARY_CORE);
@@ -398,10 +403,13 @@ void machine_pre_execute(int ip_val)
 /* Actions after instruction execution */
 void machine_post_execute()
 {
+    int core;
     xsm_word *dest_port;
 
-    if (_thecpu.timer >= 0)
-        _thecpu.timer--;
+    core = machine_get_core();
+
+    if (_thecpu.timer[core] >= 0)
+        _thecpu.timer[core]--;
 
     if (_thecpu.disk_wait > 0)
         _thecpu.disk_wait--;
@@ -409,10 +417,10 @@ void machine_post_execute()
     if (_thecpu.console_wait > 0)
         _thecpu.console_wait--;
 
-    if (_thecpu.timer == 0)
+    if (_thecpu.timer[core] == 0)
     {
         machine_execute_interrupt_do(XSM_INTERRUPT_TIMER);
-        _thecpu.timer = _theoptions.timer;
+        _thecpu.timer[core] = _theoptions.timer;
     }
     else if (_thecpu.disk_state == XSM_DISK_BUSY)
     {

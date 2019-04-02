@@ -26,6 +26,7 @@ const char *_db_commands_lh[] = {
     "diskstatus",
     "systemstatus",
     "terminalstatus",
+    "accesslocktable",
     "buffertable",
     "inodetable",
     "usertable",
@@ -56,6 +57,7 @@ const char *_db_commands_sh[] = {
     "dst",
     "sst",
     "tst",
+    "alt",
     "bt",
     "it",
     "ut",
@@ -274,6 +276,10 @@ int debug_command(char *command)
         debug_display_tst();
         break;
 
+    case DEBUG_ACCESSLOCK:
+        debug_display_alt();
+        break;
+
     case DEBUG_BUFFERTABLE:
         debug_display_bt();
         break;
@@ -393,7 +399,7 @@ int debug_command_code(const char *cmd)
 /* Retrieve RUNNING process */
 int debug_active_process()
 {
-    int pid_base, state_base, ptr, pid, i;
+    int pid_base, state_base, ptr, pid, state, i;
     xsm_word *w_pid_base, *w_state_base;
 
     ptr = DEBUG_LOC_PT;
@@ -406,8 +412,9 @@ int debug_active_process()
 
         w_pid_base = memory_get_word(pid_base);
         w_state_base = memory_get_word(state_base);
+        state = word_get_integer(w_state_base);
 
-        if (DEBUG_PROC_RUNNING == word_get_integer(w_state_base))
+        if (state == DEBUG_PROC_RUNNING || state == DEBUG_PROC_RUNNING2 || state == DEBUG_PROC_RUNNING3)
         {
             pid = word_get_integer(w_pid_base);
             break;
@@ -554,7 +561,7 @@ int debug_display_fields(int baseptr, const char **fields, const int *fields_len
     int i, ptr, num;
     xsm_word *word;
 
-    const char *state[] = {"READY", "RUNNING", "CREATED", "TERMINATED", "WAIT_DISK", "WAIT_FILE", "WAIT_BUFFER", "WAIT_TERMINAL", "WAIT_PROCESS", "WAIT_SEMAPHORE", "WAIT_MEM", "ALLOCATED"};
+    const char *state[] = {"READY", "RUNNING", "CREATED", "TERMINATED", "WAIT_DISK", "WAIT_FILE", "WAIT_BUFFER", "WAIT_TERMINAL", "WAIT_PROCESS", "WAIT_SEMAPHORE", "WAIT_MEM", "ALLOCATED", "RUNNING2", "RUNNING12"};
 
     const char *mode[] = {"Create", "Open", "Close", "Delete", "Write", "Seek", "Read", "Fork", "Exec", "Exit", "Getpid", "Getppid", "Wait", "Signal", "15", "16", "Semget", "Semrelease", "SemLock", "SemUnLock", "Shutdown", "Newusr", "Remusr", "Setpwd", "Getuname", "Getuid", "Login", "Logout"};
 
@@ -571,7 +578,7 @@ int debug_display_fields(int baseptr, const char **fields, const int *fields_len
         {
             word = memory_get_word(ptr);
             num = word_get_integer(word);
-            if (num >= 1 && num <= 12)
+            if (num >= 1 && num <= 14)
                 printf("(%s, ", state[num - 1]);
             else
                 printf("(%s, ", word_get_string(word));
@@ -937,7 +944,7 @@ int debug_display_sst()
     printf("Current User ID: %s\n", word_get_string(word));
 
     word = memory_get_word(ptr++);
-    printf("Current PID: %s\n", word_get_string(word));
+    printf("Current PID (PRIMARY): %s\n", word_get_string(word));
 
     word = memory_get_word(ptr++);
     printf("Memory Free Count: %s\n", word_get_string(word));
@@ -951,7 +958,10 @@ int debug_display_sst()
     word = memory_get_word(ptr++);
     printf("Paging Status: %s\n", word_get_string(word));
 
-    ptr += 2; /* Unused field. */
+    word = memory_get_word(ptr++);
+    printf("Current PID (SECONDARY): %s\n", word_get_string(word));
+
+    ptr += 1; /* Unused field. */
 
     return TRUE;
 }
@@ -971,6 +981,70 @@ int debug_display_tst()
     printf("PID: %s\n", word_get_string(word));
 
     ptr += 2; /* Unused field. */
+
+    return TRUE;
+}
+
+/* Debug accesslocktable command */
+int debug_display_alt(){
+    int ptr, i;
+    xsm_word *word;
+
+    ptr = DEBUG_LOC_ACCESSLOCK;
+
+    word = memory_get_word(ptr++);
+    printf("PROCESS_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("OPENFILE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("SEMTABLE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("MFLIST_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("FILESTATUS_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("DISKSTATUS_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("SYSTEMSTATUS_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("TERMSTATUS_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("PAGETABLE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("BUFFER_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("DISKMAP_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("INODETABLE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("USERTABLE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("DFLIST_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("ROOTFILE_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("SCHEDULER_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("PAGER_LOCK: %s\n", word_get_string(word));
+
+    word = memory_get_word(ptr++);
+    printf("GLOCK: %s\n", word_get_string(word));
 
     return TRUE;
 }
@@ -1246,6 +1320,7 @@ void debug_display_help()
     printf(" diskstatus / dst \n\t Displays the Disk Status Table \n");
     printf(" systemstatus / sst \n\t Displays the System Status Table \n");
     printf(" terminalstatus / tst \n\t Displays the Terminal Status Table \n");
+    printf(" accesslocktable / alt \n\t Displays the Access Lock Table \n");
     printf(" buffertable / bt \n\t Displays the Buffer Table \n");
     printf(" inodetable / it \n\t Displays the memory copy of the Inode Table \n");
     printf(" usertable / ut \n\t Displays the memory copy of the User Table \n");
