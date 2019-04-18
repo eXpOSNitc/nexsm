@@ -986,62 +986,18 @@ int debug_display_tst()
 }
 
 /* Debug accesslocktable command */
-int debug_display_alt(){
+int debug_display_alt()
+{
     int ptr, i;
     xsm_word *word;
 
     ptr = DEBUG_LOC_ACCESSLOCK;
 
     word = memory_get_word(ptr++);
-    printf("PROCESS_LOCK: %s\n", word_get_string(word));
+    printf("KERN_LOCK: %s\n", word_get_string(word));
 
     word = memory_get_word(ptr++);
-    printf("OPENFILE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("SEMTABLE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("MFLIST_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("FILESTATUS_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("DISKSTATUS_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("SYSTEMSTATUS_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("TERMSTATUS_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("PAGETABLE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("BUFFER_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("DISKMAP_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("INODETABLE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("USERTABLE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("DFLIST_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("ROOTFILE_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("SCHEDULER_LOCK: %s\n", word_get_string(word));
-
-    word = memory_get_word(ptr++);
-    printf("PAGER_LOCK: %s\n", word_get_string(word));
+    printf("SCHED_LOCK: %s\n", word_get_string(word));
 
     word = memory_get_word(ptr++);
     printf("GLOCK: %s\n", word_get_string(word));
