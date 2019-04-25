@@ -1147,7 +1147,10 @@ int machine_interrupt_address(int int_num)
     if (int_num > INTERRUPT_HIGH)
         return -1;
 
-    return (int_num * 2 + 2) * XSM_PAGE_SIZE;
+    if (int_num == 19)
+        return 130 * XSM_PAGE_SIZE;
+    else
+        return (int_num * 2 + 2) * XSM_PAGE_SIZE;
 }
 
 /* Execute LOAD/STORE instructions */

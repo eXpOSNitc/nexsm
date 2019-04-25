@@ -144,7 +144,7 @@ int debug_show_interface()
         prev_instr[0] = '\0';
 
     printf("Previous instruction at IP = %d: %s\n", _db_status.prev_ip, prev_instr);
-    printf("Mode: %s \t Core: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", (machine_get_core() == PRIMARY_CORE) ? "PRIMARY" : "SECONDARY", debug_active_process());
+    printf("Mode: %s \t Core: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", (machine_get_core() == PRIMARY_CORE) ? "PRIMARY" : "SECONDARY", debug_active_process(machine_get_core()));
 
     addr = machine_translate_address(_db_status.ip, FALSE, DEBUG_FETCH);
     if (addr >= 0)
@@ -397,31 +397,15 @@ int debug_command_code(const char *cmd)
 }
 
 /* Retrieve RUNNING process */
-int debug_active_process()
+int debug_active_process(int core)
 {
-    int pid_base, state_base, ptr, pid, state, i;
-    xsm_word *w_pid_base, *w_state_base;
+    int ptbr, pid;
 
-    ptr = DEBUG_LOC_PT;
-    pid = -1;
+    ptbr = registers_get_integer("PTBR", core);
+    pid = (ptbr - DEBUG_PT_BASE) / 20;
 
-    for (i = 0; i < MAX_PROC_NUM; ++i)
-    {
-        pid_base = ptr + 1;
-        state_base = ptr + 4;
-
-        w_pid_base = memory_get_word(pid_base);
-        w_state_base = memory_get_word(state_base);
-        state = word_get_integer(w_state_base);
-
-        if (state == DEBUG_PROC_RUNNING || state == DEBUG_PROC_RUNNING2 || state == DEBUG_PROC_RUNNING3)
-        {
-            pid = word_get_integer(w_pid_base);
-            break;
-        }
-
-        ptr = ptr + PT_ENTRY_SIZE;
-    }
+    if (pid < 0 || pid >= MAX_PROC_NUM)
+        pid = -1;
 
     return pid;
 }
@@ -442,64 +426,86 @@ int debug_skip_n(int num, int debug_command)
 /* Debug reg command */
 int debug_display_all_registers()
 {
-    int num_regs, core, i;
+    int num_regs, i;
     char *content;
     const char **reg_names;
 
     reg_names = registers_names();
     num_regs = registers_len();
-    core = machine_get_core();
 
+    printf("PRIMARY_CORE:\n");
     for (i = 0; i < num_regs; ++i)
     {
-        content = registers_get_string(reg_names[i], core);
+        content = registers_get_string(reg_names[i], PRIMARY_CORE);
         printf("%s: %s\t", reg_names[i], content);
 
         if ((i < 20 && i % 5 == 4) || i == 23 || i == 28)
             printf("\n");
     }
+    printf("\n\n");
 
+    printf("SECONDARY_CORE:\n");
+    for (i = 0; i < num_regs; ++i)
+    {
+        content = registers_get_string(reg_names[i], SECONDARY_CORE);
+        printf("%s: %s\t", reg_names[i], content);
+
+        if ((i < 20 && i % 5 == 4) || i == 23 || i == 28)
+            printf("\n");
+    }
     printf("\n");
+
     return TRUE;
 }
 
 /* Debug reg regname command */
 int debug_display_register(const char *regname)
 {
-    int core;
     char *content;
 
-    core = machine_get_core();
-    content = registers_get_string(regname, core);
-
+    content = registers_get_string(regname, PRIMARY_CORE);
     if (!content)
     {
         printf("No such register.\n");
         return FALSE;
     }
+    printf("PRIMARY_CORE: %s: %s\n", regname, content);
 
-    printf("%s: %s\n", regname, content);
+    content = registers_get_string(regname, SECONDARY_CORE);
+    printf("SECONDARY_CORE: %s: %s\n", regname, content);
+
     return TRUE;
 }
 
 /* Debug reg reg_b_name reg_e_name command */
 int debug_display_range_reg(const char *reg_b_name, const char *reg_e_name)
 {
-    int num_regs, core, i;
+    int num_regs, i, start;
     char *content;
     const char **reg_names;
 
     reg_names = registers_names();
     num_regs = registers_len();
-    core = machine_get_core();
 
     for (i = 0; i < num_regs; ++i)
         if (!strcmp(reg_b_name, reg_names[i]))
             break;
+    start = i;
 
+    printf("PRIMARY_CORE:\n");
     for (; i < num_regs; ++i)
     {
-        content = registers_get_string(reg_names[i], core);
+        content = registers_get_string(reg_names[i], PRIMARY_CORE);
+        printf("%s: %s\n", reg_names[i], content);
+
+        if (!strcmp(reg_e_name, reg_names[i]))
+            break;
+    }
+
+    printf("SECONDARY_CORE:\n");
+    for (i = start; i < num_regs; ++i)
+    {
+        content = registers_get_string(reg_names[i], SECONDARY_CORE);
         printf("%s: %s\n", reg_names[i], content);
 
         if (!strcmp(reg_e_name, reg_names[i]))
@@ -643,26 +649,39 @@ int debug_display_pcb_pid(int pid)
 /* Debug pcb command */
 int debug_display_pcb()
 {
-    int pid = debug_active_process();
+    int pid;
 
-    if (pid > -1)
-    {
+    printf("PRIMARY_CORE: \n");
+    pid = debug_active_process(PRIMARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
         debug_display_pcb_pid(pid);
-        return TRUE;
-    }
 
-    printf("No active processes.\n");
-    return FALSE;
+    printf("SECONDARY_CORE: \n");
+    pid = debug_active_process(SECONDARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
+        debug_display_pcb_pid(pid);
+
+    return TRUE;
 }
 
 /* Debug pagetable command */
 int debug_display_pt_ptbr()
 {
-    int addr, core;
+    int addr;
 
-    core = machine_get_core();
-    addr = registers_get_integer("PTBR", core);
-    return debug_display_pt_at(addr);
+    printf("PRIMARY_CORE: \n");
+    addr = registers_get_integer("PTBR", PRIMARY_CORE);
+    debug_display_pt_at(addr);
+
+    printf("SECONDARY_CORE: \n");
+    addr = registers_get_integer("PTBR", SECONDARY_CORE);
+    debug_display_pt_at(addr);
+
+    return TRUE;
 }
 
 /* Display Page Table at given addr */
@@ -699,13 +718,23 @@ int debug_display_pt_pid(int pid)
 /* Debug diskmaptable command */
 int debug_display_dmt()
 {
-    int pid = debug_active_process();
+    int pid;
 
-    if (pid > -1)
-        return debug_dmt_pid(pid);
+    printf("PRIMARY_CORE:\n");
+    pid = debug_active_process(PRIMARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
+        debug_dmt_pid(pid);
 
-    printf("No active processes.\n");
-    return FALSE;
+    printf("SECONDARY_CORE:\n");
+    pid = debug_active_process(SECONDARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
+        debug_dmt_pid(pid);
+
+    return TRUE;
 }
 
 /* Debug diskmaptable pid command */
@@ -746,13 +775,23 @@ int debug_dmt_pid(int pid)
 /* Debug resourcetable command */
 int debug_display_rt()
 {
-    int pid = debug_active_process();
+    int pid;
 
-    if (pid > -1)
-        return debug_rt_pid(pid);
+    printf("PRIMARY_CORE:\n");
+        pid = debug_active_process(PRIMARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
+        debug_rt_pid(pid);
 
-    printf("No active processes.\n");
-    return FALSE;
+    printf("SECONDARY_CORE:\n");
+        pid = debug_active_process(SECONDARY_CORE);
+    if (pid < 0)
+        printf("No active processes.\n");
+    else
+        debug_rt_pid(pid);
+
+    return TRUE;
 }
 
 /* Debug resourcetable pid command */
@@ -961,7 +1000,8 @@ int debug_display_sst()
     word = memory_get_word(ptr++);
     printf("Current PID (SECONDARY): %s\n", word_get_string(word));
 
-    ptr += 1; /* Unused field. */
+    word = memory_get_word(ptr++);
+    printf("LOGOUT_STATUS: %s\n", word_get_string(word));
 
     return TRUE;
 }
@@ -1001,6 +1041,8 @@ int debug_display_alt()
 
     word = memory_get_word(ptr++);
     printf("GLOCK: %s\n", word_get_string(word));
+
+    ptr += 5; /* Unused field. */
 
     return TRUE;
 }
@@ -1261,13 +1303,13 @@ void debug_display_help()
     printf(" reg / r <register_name>  \n\t Displays the contents of the specified register \n");
     printf(" mem / m <page_num>  \n\t Writes the contents of the memory page <page_num> to the file \"mem\" \n");
     printf(" mem / m <page_num_1> <page_num_2>  \n\t Writes the contents of the memory from pages <page_num_1> to <page_num_2> to the file \"mem\" \n");
-    printf(" pcb / p \n\t Displays the Process Table entry of the process with the state as RUNNING \n");
+    printf(" pcb / p \n\t Displays the Process Table entry of the current process \n");
     printf(" pcb / p <pid> \n\t Displays the Process Table entry of the process with the given <pid> \n");
     printf(" pagetable / pt \n\t Displays the Page Table at the location pointed by PTBR \n");
     printf(" pagetable / pt <pid> \n\t Displays the <pid> th Page Table \n");
-    printf(" diskmaptable / dmt \n\t Displays the Disk Map Table of the process with the state as RUNNING \n");
+    printf(" diskmaptable / dmt \n\t Displays the Disk Map Table of the current process \n");
     printf(" diskmaptable / dmt <pid> \n\t Displays the Disk Map Table of the process with the given <pid> \n");
-    printf(" resourcetable / rt \n\t Displays the Per-process Resource Table of the process with the state as RUNNING \n");
+    printf(" resourcetable / rt \n\t Displays the Per-process Resource Table of the current process \n");
     printf(" resourcetable / rt <pid> \n\t Displays the Per-process Resource Table of the process with the given <pid> \n");
     printf(" filetable / ft \n\t Displays the Open File Table \n");
     printf(" semtable / st \n\t Displays the Semaphore Table \n");
