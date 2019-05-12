@@ -77,6 +77,8 @@ int debug_init()
 {
     _db_status.state = OFF;
     _db_status.ip = -1;
+    _db_status.prev_mode[PRIMARY_CORE] = PRIVILEGE_KERNEL;
+    _db_status.prev_mode[SECONDARY_CORE] = PRIVILEGE_KERNEL;
     _db_status.skip = 0;
     strcpy(_db_status.command, "help");
 
@@ -103,7 +105,19 @@ int debug_next_step(int curr_ip)
     int mem_left, mem_right;
     int wp = DEBUG_ERROR;
 
-    _db_status.prev_ip = _db_status.ip;
+    if (machine_get_core_state() == ACTIVE_MODE)
+    {
+        if (machine_get_core() == PRIMARY_CORE)
+            _db_status.prev_ip[SECONDARY_CORE] = _db_status.ip;
+        else if (machine_get_core() == SECONDARY_CORE)
+            _db_status.prev_ip[PRIMARY_CORE] = _db_status.ip;
+    }
+    else
+    {
+        _db_status.prev_ip[PRIMARY_CORE] = _db_status.ip;
+        _db_status.prev_ip[SECONDARY_CORE] = -1;
+    }
+
     _db_status.ip = curr_ip;
 
     machine_get_mem_access(&mem_left, &mem_right);
@@ -118,7 +132,9 @@ int debug_next_step(int curr_ip)
     }
 
     if (_db_status.state == ON)
-        return debug_show_interface();
+        debug_show_interface();
+
+    _db_status.prev_mode[machine_get_core()] = machine_get_mode();
 
     return TRUE;
 }
@@ -127,7 +143,7 @@ int debug_next_step(int curr_ip)
 int debug_show_interface()
 {
     int done = FALSE, addr;
-    char command[DEBUG_COMMAND_LEN], prev_instr[DEBUG_STRING_LEN], next_instr[DEBUG_STRING_LEN];
+    char command[DEBUG_COMMAND_LEN], prev_instr[XSM_NUM_CORES][DEBUG_STRING_LEN], next_instr[DEBUG_STRING_LEN];
 
     if (_db_status.skip > 0)
     {
@@ -137,20 +153,34 @@ int debug_show_interface()
         return TRUE;
     }
 
-    addr = machine_translate_address(_db_status.prev_ip, FALSE, DEBUG_FETCH);
+    // Get previous instruction for PRIMARY_CORE
+    addr = machine_translate_address(_db_status.prev_ip[PRIMARY_CORE], FALSE, DEBUG_FETCH, PRIMARY_CORE, _db_status.prev_mode[PRIMARY_CORE]);
     if (addr >= 0)
-        memory_retrieve_raw_instr(prev_instr, addr);
+        memory_retrieve_raw_instr(prev_instr[PRIMARY_CORE], addr);
     else
-        prev_instr[0] = '\0';
+        prev_instr[PRIMARY_CORE][0] = '\0';
 
-    printf("Previous instruction at IP = %d: %s\n", _db_status.prev_ip, prev_instr);
-    printf("Mode: %s \t Core: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", (machine_get_core() == PRIMARY_CORE) ? "PRIMARY" : "SECONDARY", debug_active_process(machine_get_core()));
+    // Get previous instruction for SECONDARY_CORE
+    addr = machine_translate_address(_db_status.prev_ip[SECONDARY_CORE], FALSE, DEBUG_FETCH, SECONDARY_CORE, _db_status.prev_mode[SECONDARY_CORE]);
+    if (addr >= 0)
+        memory_retrieve_raw_instr(prev_instr[SECONDARY_CORE], addr);
+    else
+        prev_instr[SECONDARY_CORE][0] = '\0';
 
-    addr = machine_translate_address(_db_status.ip, FALSE, DEBUG_FETCH);
+    // Get the next instruction
+    addr = machine_translate_address(_db_status.ip, FALSE, DEBUG_FETCH, machine_get_core(), machine_get_mode());
     if (addr >= 0)
         memory_retrieve_raw_instr(next_instr, addr);
     else
         next_instr[0] = '\0';
+
+    // Print the info
+    printf("Previous instruction at IP (PRIMARY_CORE) = %d: %s\n", _db_status.prev_ip[PRIMARY_CORE], prev_instr[PRIMARY_CORE]);
+
+    if (machine_get_core_state() == ACTIVE_MODE)
+        printf("Previous instruction at IP (SECONDARY_CORE) = %d: %s\n", _db_status.prev_ip[SECONDARY_CORE], prev_instr[SECONDARY_CORE]);
+
+    printf("Mode: %s \t Core: %s \t PID: %d\n", (machine_get_mode() == PRIVILEGE_KERNEL) ? "KERNEL" : "USER", (machine_get_core() == PRIMARY_CORE) ? "PRIMARY" : "SECONDARY", debug_active_process(machine_get_core()));
 
     printf("Next instruction at IP = %d, Page No. = %d: %s\n", _db_status.ip, _db_status.ip / XSM_PAGE_SIZE, next_instr);
 
@@ -778,14 +808,14 @@ int debug_display_rt()
     int pid;
 
     printf("PRIMARY_CORE:\n");
-        pid = debug_active_process(PRIMARY_CORE);
+    pid = debug_active_process(PRIMARY_CORE);
     if (pid < 0)
         printf("No active processes.\n");
     else
         debug_rt_pid(pid);
 
     printf("SECONDARY_CORE:\n");
-        pid = debug_active_process(SECONDARY_CORE);
+    pid = debug_active_process(SECONDARY_CORE);
     if (pid < 0)
         printf("No active processes.\n");
     else
@@ -1265,7 +1295,7 @@ int debug_display_list()
 
     for (i = 0; i <= 2 * DEBUG_LIST_LEN; i++)
     {
-        addr = machine_translate_address(_db_status.ip + (i - DEBUG_LIST_LEN) * XSM_INSTRUCTION_SIZE, FALSE, DEBUG_FETCH);
+        addr = machine_translate_address(_db_status.ip + (i - DEBUG_LIST_LEN) * XSM_INSTRUCTION_SIZE, FALSE, DEBUG_FETCH, machine_get_core(), machine_get_mode());
         if (addr >= 0)
             memory_retrieve_raw_instr(instr, addr);
         else

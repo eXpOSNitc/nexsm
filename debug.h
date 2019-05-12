@@ -3,6 +3,7 @@
 #define XSM_DEBUG_H
 
 #include "machine.h"
+#include "constants.h"
 
 #define OFF FALSE
 #define ON TRUE
@@ -86,7 +87,8 @@ typedef struct _xsm_cpu xsm_cpu;
 typedef struct _debug_status
 {
     int state;
-    int prev_ip, ip;
+    int prev_ip[XSM_NUM_CORES], ip;
+    int prev_mode[XSM_NUM_CORES];
     int skip;
     int skip_command;
     int wp[16];
