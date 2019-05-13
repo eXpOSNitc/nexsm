@@ -130,6 +130,7 @@ xsm_word *machine_read_register(const char *name);
 int machine_instr_req_privilege(int opcode);
 int machine_serve_instruction(char *buffer, unsigned long *read_bytes, int max);
 int machine_run();
+void machine_change_core();
 void machine_register_exception(char *message, int code);
 int machine_handle_exception();
 void machine_get_mem_access(int *mem_left, int *mem_right);

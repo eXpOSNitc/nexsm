@@ -258,8 +258,11 @@ int machine_run()
         exp_occured = setjmp(_thecpu.h_exp_point);
 
         if (exp_occured == XSM_EXCEPTION_OCCURED)
-            if (XSM_SUCCESS != machine_handle_exception())
+        {
+            if (machine_handle_exception() != XSM_SUCCESS)
                 break;
+            machine_change_core();
+        }
 
         /* Flush the instruction stream */
         tokenize_clear_stream();
@@ -295,16 +298,22 @@ int machine_run()
         if (machine_get_mode() == PRIVILEGE_USER)
             machine_post_execute();
 
-        if (machine_get_core_state() == ACTIVE_MODE)
-        {
-            if (machine_get_core() == PRIMARY_CORE)
-                machine_set_core(SECONDARY_CORE);
-            else
-                machine_set_core(PRIMARY_CORE);
-        }
+        machine_change_core();
     }
 
     return TRUE;
+}
+
+/* Changes the core in the machine */
+void machine_change_core()
+{
+    if (machine_get_core_state() == ACTIVE_MODE)
+    {
+        if (machine_get_core() == PRIMARY_CORE)
+            machine_set_core(SECONDARY_CORE);
+        else
+            machine_set_core(PRIMARY_CORE);
+    }
 }
 
 /* Set the exception values */
