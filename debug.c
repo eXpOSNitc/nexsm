@@ -597,7 +597,7 @@ int debug_display_fields(int baseptr, const char **fields, const int *fields_len
     int i, ptr, num;
     xsm_word *word;
 
-    const char *state[] = {"READY", "RUNNING", "CREATED", "TERMINATED", "WAIT_DISK", "WAIT_FILE", "WAIT_BUFFER", "WAIT_TERMINAL", "WAIT_PROCESS", "WAIT_SEMAPHORE", "WAIT_MEM", "ALLOCATED", "RUNNING2", "RUNNING12"};
+    const char *state[] = {"READY", "RUNNING", "CREATED", "TERMINATED", "WAIT_DISK", "WAIT_FILE", "WAIT_BUFFER", "WAIT_TERMINAL", "WAIT_PROCESS", "WAIT_SEMAPHORE", "WAIT_MEM", "ALLOCATED"};
 
     const char *mode[] = {"Create", "Open", "Close", "Delete", "Write", "Seek", "Read", "Fork", "Exec", "Exit", "Getpid", "Getppid", "Wait", "Signal", "15", "16", "Semget", "Semrelease", "SemLock", "SemUnLock", "Shutdown", "Newusr", "Remusr", "Setpwd", "Getuname", "Getuid", "Login", "Logout"};
 
@@ -614,7 +614,7 @@ int debug_display_fields(int baseptr, const char **fields, const int *fields_len
         {
             word = memory_get_word(ptr);
             num = word_get_integer(word);
-            if (num >= 1 && num <= 14)
+            if (num >= 1 && num <= 12)
                 printf("(%s, ", state[num - 1]);
             else
                 printf("(%s, ", word_get_string(word));
